@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Genie 🚀</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+  <!-- Navbar -->
+  <nav class="flex justify-between items-center px-6 py-4 bg-gray-800 shadow-md">
+      <a href="#" class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+          Code Genie 🚀
+      </a>
+      <div class="space-x-6">
+          <a href="#" class="text-gray-300 hover:text-white transition">Home</a>
+          <a href="#about" class="text-gray-300 hover:text-white transition">About</a>
+      </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="max-w-4xl mx-auto mt-10 p-6 bg-gray-800 rounded-xl shadow-lg">
+      <h2 class="text-3xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+          Debug & Fix Your Code Instantly
+      </h2>
+
+      <!-- Code Input Form -->
+      <form id="codeForm" class="mt-6">
+          <label class="block text-lg font-semibold mb-2">Enter Your Code:</label>
+          <textarea name="code" class="w-full h-40 p-3 rounded-md bg-gray-700 text-white font-mono" placeholder="Paste your code here..."></textarea>
+
+          <button type="submit" class="mt-4 w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold rounded-lg shadow-lg transition-transform transform hover:scale-105">
+              🚀 Submit for Debugging
+          </button>
+      </form>
+  </div>
+
+  <!-- Results Section -->
+  <div id="result" class="max-w-4xl mx-auto mt-10 p-6 bg-gray-800 rounded-xl shadow-lg hidden">
+      <h2 class="text-2xl font-bold text-blue-400">✅ Corrected Code:</h2>
+      <pre class="scroll-box p-4 bg-gray-700 rounded-lg mt-3 overflow-x-auto"><code id="correctedCode"></code></pre>
+
+      <h2 class="text-2xl font-bold text-green-400 mt-6">💡 Explanation:</h2>
+      <div id="explanation" class="p-4 bg-gray-700 rounded-lg mt-2 text-gray-300"></div>
+
+      <h2 class="text-2xl font-bold text-yellow-400 mt-6">🔍 Inline Code Explanation:</h2>
+      <button id="explainSelectionBtn" class="mt-3 py-2 px-4 bg-yellow-500 text-white font-bold rounded-lg transition-transform transform hover:scale-105">
+          Explain Selected Code
+      </button>
+      <div id="inlineExplanation" class="p-4 bg-gray-700 rounded-lg mt-2 text-gray-300 hidden"></div>
+  </div>
+
+  <script>
+    function extractCodeAndExplanation(markdown) {
+        markdown = markdown.replace(/✅\s*Corrected Code:\s*/i, '');
+        const parts = markdown.split(/Here is the explanation:/i);
+        const codePart = parts[0].trim();
+        const explanationPart = parts[1] ? parts[1].trim() : '';
+
+        const match = codePart.match(/```(\w+)?\n([\s\S]*?)```/);
+        let language = '', code = '';
+        if (match) {
+            language = match[1] ? match[1].toLowerCase() : '';
+            code = match[2].trim();
+        } else {
+            code = codePart;
+        }
+        
+        return { code, language, explanation: explanationPart };
+    }
+
+    let debuggedCode = '';
+
+    document.getElementById('codeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const codeInput = document.querySelector('textarea[name="code"]').value;
+
+        const response = await fetch('/debug-submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: codeInput })
+        });
+
+        const data = await response.json();
+        document.getElementById('result').classList.remove('hidden');
+
+        const extracted = extractCodeAndExplanation(data.code);
+        debuggedCode = extracted.code;
+        const codeElement = document.getElementById('correctedCode');
+        codeElement.textContent = extracted.code;
+
+        if (extracted.language) {
+            codeElement.className = '';
+            codeElement.classList.add('language-' + extracted.language);
+            hljs.highlightElement(codeElement);
+        } else {
+            const result = hljs.highlightAuto(extracted.code);
+            codeElement.innerHTML = result.value;
+        }
+
+        document.getElementById('explanation').textContent = extracted.explanation || data.explanation;
+    });
+
+    document.getElementById('explainSelectionBtn').addEventListener('click', async function() {
+      const selectedText = window.getSelection().toString().trim();
+      if (!selectedText) {
+        alert("Please select some code text from the Corrected Code section.");
+        return;
+      }
+      const response = await fetch('/explain-snippet-debug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snippet: selectedText })
+      });
+      const data = await response.json();
+      const inlineDiv = document.getElementById('inlineExplanation');
+      inlineDiv.classList.remove('hidden');
+      inlineDiv.textContent = data.explanation;
+    });
+  </script>
+</body>
+</html>
